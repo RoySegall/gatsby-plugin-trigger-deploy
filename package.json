@@ -1,6 +1,6 @@
 {
   "name": "gatsby-plugin-trigger-deploy",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Provide an endpoint to trigger deployment",
   "main": "index.js",
   "scripts": {
@@ -11,7 +11,8 @@
     "url": "git+https://github.com/RoySegall/gatsby-plugin-deploy-gh.git"
   },
   "keywords": [
-    "gatsbyjs"
+    "gatsbyjs",
+    "gatsby-plugin"
   ],
   "author": "RoySegall <roy@segall.io>",
   "license": "MIT",

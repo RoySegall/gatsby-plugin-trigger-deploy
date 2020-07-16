@@ -40,7 +40,7 @@ exports.onCreateDevServer = ({ app, reporter }, pluginOptions) => {
       res.status(401).send({message});
     }
 
-    res.status(201).send({message: 'Deployment process has started'});
+    res.status(200).send({message: 'Deployment process has started'});
 
     // Deploying.
     const deploy = spawn('npm', ['run', 'deploy']);
