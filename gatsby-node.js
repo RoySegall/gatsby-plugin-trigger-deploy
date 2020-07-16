@@ -1,5 +1,6 @@
 const { spawn } = require("child_process");
 const axios = require("axios");
+const bodyParser = require('body-parser')
 
 exports.onCreateDevServer = ({ app, reporter }, pluginOptions) => {
 
@@ -25,9 +26,14 @@ exports.onCreateDevServer = ({ app, reporter }, pluginOptions) => {
 
   reporter.success('The trigger deploy plugin is ready.');
 
+  app.use(bodyParser.json());
+  app.use(bodyParser.urlencoded({ extended: true }));
+
   app.post('/deploy', function(req, res) {
 
-    if (req.headers['secret_key'] !== secretKey) {
+    const payloadSecretKey = req.headers['secret_key'] || req.body['secret_key'];
+
+    if (payloadSecretKey !== secretKey) {
       const message = 'The secret which passed in the header is missing or does not matching the desired secret key';
 
       reporter.error(message);
@@ -45,19 +51,19 @@ exports.onCreateDevServer = ({ app, reporter }, pluginOptions) => {
       notifyEventListener({
         event: 'deployment',
         status: 'failed',
-        data: error,
+        secret_key: payloadSecretKey,
+        data: data,
       });
     });
 
     deploy.on('close', (code) => {
       reporter.success(`The deployment process has went OK`);
 
-      if (addressCallback) {
-        notifyEventListener({
-          event: 'deployment',
-          status: 'succeeded',
-        });
-      }
+      notifyEventListener({
+        event: 'deployment',
+        status: 'succeeded',
+        secret_key: payloadSecretKey,
+      });
     });
 
   })
