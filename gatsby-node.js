@@ -1,10 +1,12 @@
 const { spawn } = require("child_process");
 const axios = require("axios");
-const bodyParser = require('body-parser')
+const bodyParser = require('body-parser');
+const events = require('events');
+const eventEmitter = new events.EventEmitter();
 
 exports.onCreateDevServer = ({ app, reporter }, pluginOptions) => {
 
-  const { secretKey, addressCallback } = pluginOptions;
+  const { secretKey, addressCallback, requestBodyHandler, preDeploy } = pluginOptions;
 
   if (!secretKey) {
     reporter.error('You must have a secret key. Please look at the plugin documentation.');
@@ -42,29 +44,40 @@ exports.onCreateDevServer = ({ app, reporter }, pluginOptions) => {
 
     res.status(200).send({message: 'Deployment process has started'});
 
-    // Deploying.
-    const deploy = spawn('npm', ['run', 'deploy']);
+    // Handle request body
+    if (typeof requestBodyHandler !== 'undefined') {
+      requestBodyHandler(req.body);
+    }
 
-    deploy.stderr.on('data', (data) => {
-      reporter.error(`An error during the deployment: ${data}`);
+    // Handle pre deploy
+    if (typeof preDeploy !== 'undefined') {
+      preDeploy({ spawn, eventEmitter });
+    }
 
-      notifyEventListener({
-        event: 'deployment',
-        status: 'failed',
-        secret_key: payloadSecretKey,
-        data: data,
+    eventEmitter.on('predeploy-finished', () => {
+      // Deploying.
+      const deploy = spawn('npm', ['run', 'deploy']);
+
+      deploy.stderr.on('data', (data) => {
+        reporter.error(`An error during the deployment: ${data}`);
+
+        notifyEventListener({
+          event: 'deployment',
+          status: 'failed',
+          secret_key: payloadSecretKey,
+          data: data,
+        });
       });
-    });
 
-    deploy.on('close', (code) => {
-      reporter.success(`The deployment process has went OK`);
+      deploy.on('close', (code) => {
+        reporter.success(`The deployment process has went OK`);
 
-      notifyEventListener({
-        event: 'deployment',
-        status: 'succeeded',
-        secret_key: payloadSecretKey,
+        notifyEventListener({
+          event: 'deployment',
+          status: 'succeeded',
+          secret_key: payloadSecretKey,
+        });
       });
-    });
-
+    })
   })
 }
