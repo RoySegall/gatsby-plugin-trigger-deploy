@@ -24,6 +24,7 @@ module.exports = {
       options: {
         secretKey: 'a super secret key, maybe with emojis? 🍕',
         addressCallback: 'http://localhost/endpoint/for/notifying',
+        callbackPayload: { 'extraData': 'something' },
         requestBodyHandler: (reqBody) => {
             // Do something with request body
         },

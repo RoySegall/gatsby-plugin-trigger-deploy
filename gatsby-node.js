@@ -6,7 +6,7 @@ const eventEmitter = new events.EventEmitter();
 
 exports.onCreateDevServer = ({ app, reporter }, pluginOptions) => {
 
-  const { secretKey, addressCallback, requestBodyHandler, preDeploy } = pluginOptions;
+  const { secretKey, addressCallback, requestBodyHandler, preDeploy, callbackPayload } = pluginOptions;
 
   if (!secretKey) {
     reporter.error('You must have a secret key. Please look at the plugin documentation.');
@@ -72,11 +72,17 @@ exports.onCreateDevServer = ({ app, reporter }, pluginOptions) => {
       deploy.on('close', (code) => {
         reporter.success(`The deployment process has went OK`);
 
-        notifyEventListener({
+        let notifyPayload = {
           event: 'deployment',
           status: 'succeeded',
           secret_key: payloadSecretKey,
-        });
+        }
+
+        if (typeof callbackPayload !== 'undefined') {
+          notifyPayload = {...notifyPayload, ...callbackPayload};
+        }
+
+        notifyEventListener(notifyPayload);
       });
     })
   })
