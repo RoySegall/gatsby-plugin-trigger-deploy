@@ -2,7 +2,6 @@ const { spawn } = require("child_process");
 const axios = require("axios");
 const bodyParser = require('body-parser');
 const events = require('events');
-const eventEmitter = new events.EventEmitter();
 
 exports.onCreateDevServer = ({ app, reporter }, pluginOptions) => {
 
@@ -14,11 +13,9 @@ exports.onCreateDevServer = ({ app, reporter }, pluginOptions) => {
   }
 
   const notifyEventListener = (data) => {
-
     if (!addressCallback) {
       return;
     }
-
     axios.post(addressCallback, data).then((response) => {
       reporter.success('The event has been arrived to the listener');
     }, (error) => {
@@ -26,15 +23,49 @@ exports.onCreateDevServer = ({ app, reporter }, pluginOptions) => {
     });
   };
 
+  const startDeployment = ({predeploy, payloadSecretKey, eventEmitter}) => () => {
+    const deploy = spawn('npm', ['run', 'prebuild']);
+
+    deploy.stderr.on('data', (data) => {
+      reporter.error(`An error during the deployment: ${data}`);
+
+      notifyEventListener({
+        event: 'deployment',
+        status: 'failed',
+        secret_key: payloadSecretKey,
+        data: data,
+      });
+    });
+
+    deploy.on('close', (code) => {
+      reporter.success(`The deployment process has went OK`);
+
+      let notifyPayload = {
+        event: 'deployment',
+        status: 'succeeded',
+        secret_key: payloadSecretKey,
+      }
+
+      if (typeof callbackPayload !== 'undefined') {
+        notifyPayload = {...notifyPayload, ...callbackPayload};
+      }
+
+      if (predeploy) {
+        eventEmitter.removeListener('predeploy-finished', startDeployment);
+      }
+
+      notifyEventListener(notifyPayload);
+    });
+  }
+
   reporter.success('The trigger deploy plugin is ready.');
 
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({ extended: true }));
 
   app.post('/deploy', function(req, res) {
-
     const payloadSecretKey = req.headers['secret_key'] || req.body['secret_key'];
-
+    const eventEmitter = new events.EventEmitter();
     if (payloadSecretKey !== secretKey) {
       const message = 'The secret which passed in the header is missing or does not matching the desired secret key';
 
@@ -52,38 +83,9 @@ exports.onCreateDevServer = ({ app, reporter }, pluginOptions) => {
     // Handle pre deploy
     if (typeof preDeploy !== 'undefined') {
       preDeploy({ spawn, eventEmitter });
+      eventEmitter.on('predeploy-finished', startDeployment({preDeploy, payloadSecretKey,  eventEmitter }));
+    } else {
+      startDeployment({preDeploy, payloadSecretKey, eventEmitter});
     }
-
-    eventEmitter.on('predeploy-finished', () => {
-      // Deploying.
-      const deploy = spawn('npm', ['run', 'deploy']);
-
-      deploy.stderr.on('data', (data) => {
-        reporter.error(`An error during the deployment: ${data}`);
-
-        notifyEventListener({
-          event: 'deployment',
-          status: 'failed',
-          secret_key: payloadSecretKey,
-          data: data,
-        });
-      });
-
-      deploy.on('close', (code) => {
-        reporter.success(`The deployment process has went OK`);
-
-        let notifyPayload = {
-          event: 'deployment',
-          status: 'succeeded',
-          secret_key: payloadSecretKey,
-        }
-
-        if (typeof callbackPayload !== 'undefined') {
-          notifyPayload = {...notifyPayload, ...callbackPayload};
-        }
-
-        notifyEventListener(notifyPayload);
-      });
-    })
   })
 }
