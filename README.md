@@ -24,6 +24,18 @@ module.exports = {
       options: {
         secretKey: 'a super secret key, maybe with emojis? 🍕',
         addressCallback: 'http://localhost/endpoint/for/notifying',
+        callbackPayload: { 'extraData': 'something' },
+        requestBodyHandler: (reqBody) => {
+            // Do something with request body
+        },
+        preDeploy: ({ spawn, eventEmitter}) => {
+            // Do things before deploying, then emit an event
+            // to start deployment process
+            const prepare = spawn('npm', ['run', 'mytask'])
+            prepare.on('exit', (exitcode) => {
+                    eventEmitter.emit('predeploy-finished');
+            });
+        }
       },
     },
   ],
@@ -56,3 +68,5 @@ axios(config)
 
 * secretKey - Required; The secret key which is required for triggering the deployment process. 
 * addressCallback - Optional; If defined, the plugin will send REST request with data on the deployment process. 
+* requestBodyHandler - Optional; function to handle/process additional data passed in request body
+* preDeploy - Optional; function that run before the actual deployment process started 
