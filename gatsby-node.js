@@ -24,7 +24,7 @@ exports.onCreateDevServer = ({ app, reporter }, pluginOptions) => {
   };
 
   const startDeployment = ({predeploy, payloadSecretKey, eventEmitter}) => () => {
-    const deploy = spawn('npm', ['run', 'prebuild']);
+    const deploy = spawn('npm', ['run', 'deploy']);
 
     deploy.stderr.on('data', (data) => {
       reporter.error(`An error during the deployment: ${data}`);
